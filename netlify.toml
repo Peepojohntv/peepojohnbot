@@ -1,0 +1,22 @@
+[build]
+  publish = "public"
+
+[[edge_functions]]
+  function = "twitch-login"
+  path = "/api/login"
+
+[[edge_functions]]
+  function = "twitch-callback"
+  path = "/api/callback"
+
+[[edge_functions]]
+  function = "commands"
+  path = "/api/commands"
+
+[[edge_functions]]
+  function = "settings"
+  path = "/api/settings"
+
+[[edge_functions]]
+  function = "bot-sync"
+  path = "/api/bot-sync"

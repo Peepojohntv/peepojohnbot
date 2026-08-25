@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>PeepoJohnBot Dashboard</title>
+<style>
+  :root {
+    --bg: #0e0e10;
+    --panel: #18181b;
+    --panel2: #1f1f23;
+    --accent: #9147ff;
+    --accent2: #772ce8;
+    --text: #efeff1;
+    --muted: #adadb8;
+    --danger: #f13c3c;
+    --ok: #2ecc71;
+    --border: #2d2d32;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    background: radial-gradient(circle at top, #1a1a1e 0%, #0e0e10 60%);
+    color: var(--text);
+    min-height: 100vh;
+  }
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 32px;
+    border-bottom: 1px solid var(--border);
+    background: rgba(24,24,27,0.6);
+    backdrop-filter: blur(6px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  header h1 {
+    font-size: 18px;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  header h1 .dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: var(--danger);
+  }
+  header h1 .dot.connected { background: var(--ok); box-shadow: 0 0 8px var(--ok); }
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-weight: 600;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background .15s ease, transform .1s ease;
+  }
+  .btn:hover { background: var(--accent2); }
+  .btn:active { transform: scale(0.97); }
+  .btn.secondary { background: var(--panel2); border: 1px solid var(--border); }
+  .btn.secondary:hover { background: #2a2a30; }
+  .btn.danger { background: var(--danger); }
+  main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 32px 20px 80px;
+  }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 22px 24px;
+    margin-bottom: 20px;
+  }
+  .card h2 {
+    margin: 0 0 14px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: .06em;
+    color: var(--muted);
+  }
+  .row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+  input, select, textarea {
+    background: var(--panel2);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+  }
+  input:focus, select:focus, textarea:focus { outline: none; border-color: var(--accent); }
+  .cmd {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 14px;
+    background: var(--panel2);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    gap: 12px;
+  }
+  .cmd .name { font-weight: 600; color: var(--accent); min-width: 110px; }
+  .cmd .resp { color: var(--muted); font-size: 13px; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cmd .meta { font-size: 11px; color: var(--muted); }
+  .pill {
+    background: #2a2a30;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .toggle-list { display: flex; flex-direction: column; gap: 10px; }
+  .toggle-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .toggle-row:last-child { border-bottom: none; }
+  .switch { position: relative; width: 42px; height: 24px; }
+  .switch input { display: none; }
+  .slider {
+    position: absolute; inset: 0;
+    background: #3a3a40;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: .2s;
+  }
+  .slider::before {
+    content: ""; position: absolute; width: 18px; height: 18px;
+    left: 3px; top: 3px; background: white; border-radius: 50%;
+    transition: .2s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+  .empty { color: var(--muted); font-size: 14px; text-align: center; padding: 24px 0; }
+  .gate {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    min-height: 70vh; text-align: center; gap: 16px;
+  }
+  .gate img { width: 64px; }
+  .key-input { width: 260px; }
+  small.hint { display: block; margin-top: 8px; color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div id="app"></div>
+
+<script>
+const API = ""; // Netlify Functions liegen unter /api/...
+let DASHBOARD_KEY = localStorage.getItem("pjb_key") || "";
+
+function h(tag, attrs = {}, children = []) {
+  const el = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (k === "onclick") el.onclick = v;
+    else if (k === "onchange") el.onchange = v;
+    else if (k === "html") el.innerHTML = v;
+    else el.setAttribute(k, v);
+  }
+  (Array.isArray(children) ? children : [children]).forEach(c => {
+    if (c == null) return;
+    el.appendChild(typeof c === "string" ? document.createTextNode(c) : c);
+  });
+  return el;
+}
+
+async function api(path, opts = {}) {
+  const res = await fetch(API + path, {
+    ...opts,
+    headers: { "Content-Type": "application/json", "x-dashboard-key": DASHBOARD_KEY, ...(opts.headers || {}) },
+  });
+  if (res.status === 401) { promptKey(); throw new Error("unauthorized"); }
+  return res.json();
+}
+
+function promptKey() {
+  localStorage.removeItem("pjb_key");
+  render();
+}
+
+async function render() {
+  const app = document.getElementById("app");
+  app.innerHTML = "";
+
+  if (!DASHBOARD_KEY) {
+    app.appendChild(renderKeyGate());
+    return;
+  }
+
+  let data;
+  try {
+    data = await api("/api/settings");
+  } catch (e) {
+    return;
+  }
+
+  const commands = await api("/api/commands");
+  app.appendChild(renderHeader(data));
+  app.appendChild(renderMain(data, commands));
+}
+
+function renderKeyGate() {
+  const wrap = h("div", { class: "gate" });
+  const input = h("input", { class: "key-input", placeholder: "Dashboard-Schlüssel eingeben" });
+  wrap.appendChild(h("h1", {}, "🐸 PeepoJohnBot Dashboard"));
+  wrap.appendChild(h("p", {}, "Gib deinen Dashboard-Schlüssel ein (der gleiche wie DASHBOARD_SECRET in Netlify)."));
+  wrap.appendChild(input);
+  wrap.appendChild(h("button", { class: "btn", onclick: () => {
+    DASHBOARD_KEY = input.value.trim();
+    localStorage.setItem("pjb_key", DASHBOARD_KEY);
+    render();
+  }}, "Einloggen"));
+  return wrap;
+}
+
+function renderHeader(data) {
+  return h("header", {}, [
+    h("h1", {}, [
+      h("span", { class: "dot" + (data.connected ? " connected" : "") }),
+      "PeepoJohnBot Dashboard"
+    ]),
+    h("div", { class: "row" }, [
+      data.connected
+        ? h("span", { class: "pill" }, "verbunden als " + data.channel)
+        : h("a", { href: "/api/login", class: "btn" }, "Mit Twitch verbinden"),
+      h("button", { class: "btn secondary", onclick: () => { localStorage.removeItem("pjb_key"); render(); } }, "Ausloggen")
+    ])
+  ]);
+}
+
+function renderMain(data, commands) {
+  const main = h("main", {});
+  main.appendChild(renderSettingsCard(data.settings));
+  main.appendChild(renderBuiltinsCard(data.settings));
+  main.appendChild(renderCommandsCard(commands));
+  return main;
+}
+
+function renderSettingsCard(settings) {
+  const card = h("div", { class: "card" });
+  card.appendChild(h("h2", {}, "Allgemein"));
+
+  const prefixInput = h("input", { value: settings.prefix || "!", style: "width:60px" });
+  const discordInput = h("input", { value: settings.discordUrl || "", placeholder: "https://discord.gg/...", style: "width:260px" });
+
+  const save = h("button", { class: "btn", onclick: async () => {
+    await api("/api/settings", { method: "PUT", body: JSON.stringify({
+      prefix: prefixInput.value.trim() || "!",
+      discordUrl: discordInput.value.trim(),
+    })});
+    render();
+  }}, "Speichern");
+
+  card.appendChild(h("div", { class: "row" }, [
+    h("label", {}, "Prefix:"), prefixInput,
+    h("label", {}, "Discord-Link:"), discordInput,
+    save
+  ]));
+  return card;
+}
+
+function renderBuiltinsCard(settings) {
+  const card = h("div", { class: "card" });
+  card.appendChild(h("h2", {}, "Eingebaute Befehle"));
+  const list = h("div", { class: "toggle-list" });
+
+  const builtinDefs = [
+    ["uptime", "!uptime — wie lange läuft der Stream"],
+    ["followage", "!followage — seit wann folgt jemand"],
+    ["title", "!title — aktueller Stream-Titel"],
+    ["game", "!game — aktuell gespieltes Spiel"],
+    ["so", "!so <name> — Shoutout für einen Streamer"],
+    ["discord", "!discord — postet den Discord-Link"],
+  ];
+
+  const builtins = settings.builtins || {};
+
+  builtinDefs.forEach(([key, label]) => {
+    const checked = builtins[key] !== false;
+    const cb = h("input", { type: "checkbox" });
+    cb.checked = checked;
+    cb.onchange = async () => {
+      const newBuiltins = { ...builtins, [key]: cb.checked };
+      await api("/api/settings", { method: "PUT", body: JSON.stringify({ builtins: newBuiltins }) });
+    };
+    const switchEl = h("label", { class: "switch" }, [cb, h("span", { class: "slider" })]);
+    list.appendChild(h("div", { class: "toggle-row" }, [h("span", {}, label), switchEl]));
+  });
+
+  card.appendChild(list);
+  return card;
+}
+
+function renderCommandsCard(commands) {
+  const card = h("div", { class: "card" });
+  card.appendChild(h("h2", {}, "Custom Commands"));
+
+  const listEl = h("div", {});
+  if (commands.length === 0) {
+    listEl.appendChild(h("div", { class: "empty" }, "Noch keine Custom Commands angelegt."));
+  }
+  commands.forEach(cmd => {
+    listEl.appendChild(h("div", { class: "cmd" }, [
+      h("span", { class: "name" }, "!" + cmd.name),
+      h("span", { class: "resp" }, cmd.response),
+      h("span", { class: "pill" }, cmd.permission),
+      h("span", { class: "pill" }, cmd.cooldown + "s"),
+      h("button", { class: "btn danger", style: "padding:6px 10px;font-size:12px", onclick: async () => {
+        await api("/api/commands", { method: "DELETE", body: JSON.stringify({ id: cmd.id }) });
+        render();
+      }}, "Löschen")
+    ]));
+  });
+  card.appendChild(listEl);
+
+  const nameInput = h("input", { placeholder: "befehlsname" });
+  const respInput = h("input", { placeholder: "Antworttext, z.B. {user} check mal {discord}", style: "min-width:280px" });
+  const cdInput = h("input", { type: "number", value: "5", style: "width:70px" });
+  const permSelect = h("select", {}, [
+    h("option", { value: "everyone" }, "Alle"),
+    h("option", { value: "subscriber" }, "Subscriber"),
+    h("option", { value: "vip" }, "VIP"),
+    h("option", { value: "moderator" }, "Moderator"),
+    h("option", { value: "broadcaster" }, "Nur Broadcaster"),
+  ]);
+
+  const addBtn = h("button", { class: "btn", onclick: async () => {
+    if (!nameInput.value.trim() || !respInput.value.trim()) return;
+    const res = await api("/api/commands", { method: "POST", body: JSON.stringify({
+      name: nameInput.value.trim(),
+      response: respInput.value.trim(),
+      cooldown: parseInt(cdInput.value, 10) || 5,
+      permission: permSelect.value,
+    })});
+    if (res.error) { alert(res.error); return; }
+    render();
+  }}, "+ Befehl hinzufügen");
+
+  card.appendChild(h("div", { class: "row", style: "margin-top:16px" }, [nameInput, respInput, cdInput, permSelect, addBtn]));
+  card.appendChild(h("small", { class: "hint" }, "Platzhalter: {user}, {channel}, {discord}"));
+  return card;
+}
+
+render();
+</script>
+</body>
+</html>
